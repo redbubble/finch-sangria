@@ -291,10 +291,11 @@ trait RequestOps {
 object RequestOps extends RequestOps
 ```
 
-
 ## Twitter -> Scala Conversions
 
 Conversion code. You can also use [Bijections](https://github.com/twitter/bijection). Meh.
+
+`Future` conversions.
 
 ```scala
 package com.redbubble.util.async
@@ -334,7 +335,7 @@ trait FutureOps {
 object FutureOps extends FutureOps
 ```
 
-Syntax for conversions.
+Syntax for `Future` conversions:
 
 ```scala
 package com.redbubble.util.async
@@ -347,6 +348,44 @@ package object syntax {
 
   implicit final class ScalaToTwitterFuture[A](val f: ScalaFuture[A]) extends AnyVal {
     def asTwitter(implicit ec: ExecutionContext): TwitterFuture[A] = FutureOps.scalaToTwitterFuture(f)(ec)
+  }
+
+}
+```
+
+Conversions for `Try`:
+
+```scala
+package com.redbubble.util.std
+
+import com.twitter.util.{Return, Throw, Try => TwitterTry}
+
+import scala.util.{Failure, Success, Try => ScalaTry}
+
+trait OptionOps {
+  def asScalaTry[A](o: Option[A], onNone: Throwable): ScalaTry[A] = o.fold[ScalaTry[A]](Failure(onNone))(a => Success(a))
+
+  def asTwitterTry[A](o: Option[A], onNone: Throwable): TwitterTry[A] = o.fold[TwitterTry[A]](Throw(onNone))(a => Return(a))
+}
+
+object OptionOps extends OptionOps
+```
+
+And some syntax:
+
+```scala
+package com.redbubble.util.std
+
+import com.twitter.util.{Try => TwitterTry}
+
+import scala.util.{Try => ScalaTry}
+
+package object syntax {
+
+  implicit final class RichOption[+A](val option: Option[A]) extends AnyVal {
+    def toScalaTry(onNone: Throwable): ScalaTry[A] = OptionOps.asScalaTry(option, onNone)
+
+    def toTwitterTry(onNone: Throwable): TwitterTry[A] = OptionOps.asTwitterTry(option, onNone)
   }
 
 }
