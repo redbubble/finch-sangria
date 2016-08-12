@@ -187,9 +187,6 @@ val PushNotificationTokenType =
     parseToken, () => PushNotificationTokenCoercionViolation
   )
 
-val PushNotificationTokenArg =
-  Argument("token", PushNotificationTokenType, description = s"An iOS push notification token.")
-
 //
 // Input type for our type
 //
