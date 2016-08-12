@@ -65,7 +65,7 @@ The classes rely on conversions between Twitter & Scala classes, you can use bij
 
 1. Create a Finch `DecodeRequest` instance (`Decode` in latest Finch) for our query:
 
-    ```
+    ```scala
     implicit val graphQlQueryDecodeRequest: DecodeRequest[GraphQlQuery] = RequestOps.decodeRootJson[GraphQlQuery](queryDecoder, cleanJson)
     ```
 
