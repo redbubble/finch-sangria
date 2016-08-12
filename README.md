@@ -2,17 +2,19 @@
 
 Some simple wrappers around [Sangria](http://sangria-graphql.org) to support its use in [Finch](https://github.com/finagle/finch).
 
-This is almost directly pulled from a codebase, no effort was made to make it resusable, sorry. It might not compile ¯\_(ツ)_/¯ ...
+In response to a request on the Sangria gitter channel, this is almost directly pulled from a codebase, no effort was made to make it resusable, sorry. It might not compile without some changes.
+
+¯\_(ツ)_/¯
 
 It is a small layer, that is reasonably opininated, which may not be to your liking. In particular:
 
+* We only support the previous version of Finch, basically because the latest version doesn't yet support mixed content types in endpoints. It will probably work in the latest (we have a branch that does, so with a little work it should be ok).
 * We transport GraphQL queries as JSON, over HTTP. This necessitates some nasties from time to time.
 * We use Twitter classes instead of the standard library, for things like `Future` and `Try`.
 * We use `Future`s containing `Option`s or `Xor`s instead a failing `Future`. Failing `Future`s are only used for things that we'd not reasonably expect a client to be able to handle (i.e. something catastrophic).
 * We assume that you want to return some reasonable status codes for errors, rather than `200`s containing the error test. This may hurt some clients.
 * We handle variables in the form of a JSON encoded string (for example from GraphiQL), as well as a straight JSON object.
 * We expect that you want strong types for things.
-* We only support the previous version of Finch, basically because the latest version doesn't yet support mixed content types in endpoints. It will probably work in the latest (we have a branch that does, so with a little work it should be ok).
 
 There are some things that need improvement, including:
 
