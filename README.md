@@ -2,7 +2,7 @@
 
 Some simple wrappers around [Sangria](http://sangria-graphql.org) to support its use in [Finch](https://github.com/finagle/finch).
 
-In response to a request on the Sangria gitter channel, this is almost directly pulled from a codebase, no effort was made to make it resusable, sorry. It might not compile without some changes. `¯\_(ツ)_/¯`
+In response to a request on the Sangria gitter channel, this is almost directly pulled from a codebase, no effort was made to make it resusable, sorry. It might not compile without some changes.
 
 It is a small layer, that is reasonably opininated, which may not be to your liking. In particular:
 
