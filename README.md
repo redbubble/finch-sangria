@@ -2,7 +2,7 @@
 
 Some simple wrappers around [Sangria](http://sangria-graphql.org) to support its use in [Finch](https://github.com/finagle/finch).
 
-This is almost directly pulled from a codebase, no effort was made to make it resusable, sorry. It might not compile.
+This is almost directly pulled from a codebase, no effort was made to make it resusable, sorry. It might not compile ¯\_(ツ)_/¯ ...
 
 It is a small layer, that is reasonably opininated, which may not be to your liking. In particular:
 
@@ -12,7 +12,7 @@ It is a small layer, that is reasonably opininated, which may not be to your lik
 * We assume that you want to return some reasonable status codes for errors, rather than `200`s containing the error test. This may hurt some clients.
 * We handle variables in the form of a JSON encoded string (for example from GraphiQL), as well as a straight JSON object.
 * We expect that you want strong types for things.
-* We only support the previous version of Finch, basically because the latest version doesn't yet support mixed content types in endpoints.
+* We only support the previous version of Finch, basically because the latest version doesn't yet support mixed content types in endpoints. It will probably work in the latest (we have a branch that does, so with a little work it should be ok).
 
 There are some things that need improvement, including:
 
@@ -201,6 +201,74 @@ val MutationType = ObjectType(
 ```
 
 # Misc
+
+## Decoding bits
+
+This class contains utility methods for parsing & decoding, mainly there to ensue consistency around the methods used for this.
+
+```scala
+package com.redbubble.util.json
+
+import cats.data.Xor
+import io.circe._
+
+trait JsonCodecOps {
+  val emptyJsonObject: Json = Json.fromJsonObject(JsonObject.empty)
+
+  final def parse(input: String): ParsingFailure Xor Json = io.circe.jawn.parse(input)
+
+  final def decode[A](input: String)(implicit decoder: Decoder[A]): Error Xor A = io.circe.jawn.decode(input)(decoder)
+}
+
+object JsonCodecOps extends JsonCodecOps
+```
+
+This class decodes incoming request payloads.
+
+```scala
+package com.redbubble.util.http
+
+import com.redbubble.util.error.Errors.jsonDecodeFailedError
+import com.redbubble.util.json.JsonCodecOps
+import com.twitter.util.{Return, Throw, Try}
+import io.circe.Decoder
+import io.finch.DecodeRequest
+
+trait RequestOps {
+  type JsonCleaner = (String) => String
+
+  /**
+    * Decodes a payload, where the data to be decoded sits as an object inside a top level `data` field of the
+    * request body. For example: `{ "data" : { ... } }`.
+    */
+  final def decodeDataJson[A](d: Decoder[A], c: JsonCleaner = identity): DecodeRequest[A] =
+    DecodeRequest.instance(payload => decodePayload(c(payload), dataFieldObjectDecoder(d)))
+
+  /**
+    * Decodes a payload, where the data to be decoded is an object at the root level of the request body. For
+    * example: `{ ... }`.
+    */
+  final def decodeRootJson[A](d: Decoder[A], c: JsonCleaner = identity): DecodeRequest[A] =
+    DecodeRequest.instance(payload => decodePayload(c(payload), rootObjectDecoder(d)))
+
+  private def decodePayload[A](payload: String, decoder: Decoder[A]): Try[A] = {
+    val decodedPayload = JsonCodecOps.decode(payload)(decoder)
+    decodedPayload.fold(
+      error => Throw(jsonDecodeFailedError(s"Unable to decode JSON payload: ${error.getMessage}", error)),
+      value => Return(value)
+    )
+  }
+
+  private def dataFieldObjectDecoder[A](implicit d: Decoder[A]): Decoder[A] = Decoder.instance(c => c.downField("data").as[A](d))
+
+  private def rootObjectDecoder[A](implicit d: Decoder[A]): Decoder[A] = Decoder.instance(c => c.as[A](d))
+}
+
+object RequestOps extends RequestOps
+```
+
+
+## Twitter -> Scala Conversions
 
 Conversion code. You can also use [Bijections](https://github.com/twitter/bijection). Meh.
 
