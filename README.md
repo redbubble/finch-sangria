@@ -98,6 +98,30 @@ The classes rely on conversions between Twitter & Scala classes, you can use bij
     }
     ```
 
+# GraphiQL
+
+If you want to integrate [GraphiQL](https://github.com/graphql/graphiql) (you should), it's pretty easy.
+
+1. Pull down the [GraphiQL file](https://github.com/graphql/graphiql/blob/master/example/index.html).
+
+1. Stick it somewhere in your classpath.
+
+1. Write an endpoint for it:
+
+```scala
+def classpathResource(name: String): Option[InputStream] = Option(getClass.getResourceAsStream(name))
+
+val graphiQlPath = "/graphiql.html"
+
+def graphiql: Endpoint[AsyncStream[Buf]] =
+  get("graphiql") {
+    classpathResource(graphiQlPath).map(fromStream) match {
+      case Some(g) => Ok(AsyncStream.fromReader(g, chunkSize = 512.kilobytes.inBytes.toInt))
+      case None => InternalServerError(graphQlError(s"Unable to find GraphiQL at '$graphiQlPath'"))
+    }
+  }
+```
+
 # Other bits
 
 We've added some other bits & pieces to make using Sangria easier.
