@@ -17,7 +17,7 @@ It is a small layer, that is reasonably opininated, which may not be to your lik
 There are some things that need improvement, including:
 
 * Having the variables encoded as `Json` is a bit crap, but it's a quick way to get things up & running, as there is built in support for JSON using a Circe `sangria.marshalling.InputUnmarshaller`.
-* In the same vein, the executor returns `Json`, mainly because of the `CirceResultMarshaller`. Ideally both of these would use some form of class that represented the variables/results, and defined an `InputUnmarshaller` and a ``ResultMarshaller` for them respectively. In particular, this leads to the unpleasantness with the re-parsing of the JSON returned from the underlying executor to find the status of the result.
+* In the same vein, the executor returns `Json`, mainly because of the `CirceResultMarshaller`. Ideally both of these would use some form of class that represented the variables/results, and defined an `InputUnmarshaller` and a `ResultMarshaller` for them respectively. In particular, this leads to the unpleasantness with the re-parsing of the JSON returned from the underlying executor to find the status of the result.
 * Error handling isn't ideal, we don't return the full details of Sangria's errors as we attempt to decode them in order to detect the cause & return the correct status code.
 * We don't do a good job of handling (non-validation) Sangria errors that are the result of client failures (bad queries), or the result of executing the query, e.g. from a downstream service. Both currently return `500`.
 
