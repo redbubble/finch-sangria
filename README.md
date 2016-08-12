@@ -10,7 +10,7 @@ It is a small layer, that is reasonably opininated, which may not be to your lik
 * We transport GraphQL queries as JSON, over HTTP. This necessitates some nasties from time to time.
 * We use Twitter classes instead of the standard library, for things like `Future` and `Try`.
 * We use `Future`s containing `Option`s or `Xor`s instead a failing `Future`. Failing `Future`s are only used for things that we'd not reasonably expect a client to be able to handle (i.e. something catastrophic).
-* We assume that you want to return some reasonable status codes for errors, rather than `200`s containing the error test. This may hurt some clients.
+* We assume that you want to return some reasonable status codes for errors, rather than `200`s containing the `errors` fields. This may hurt some clients.
 * We handle variables in the form of a JSON encoded string (for example from GraphiQL), as well as a straight JSON object.
 * We expect that you want strong types for things.
 
