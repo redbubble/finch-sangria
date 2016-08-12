@@ -59,7 +59,7 @@ The classes rely on conversions between Twitter & Scala classes, you can use bij
     val executor = GraphQlQueryExecutor.executor(schema, context, maxQueryDepth = 9)
     ```
 
-Set the max depth to whatever suits your schema.
+  Set the max depth to whatever suits your schema.
 
 1. Create a Finch `DecodeRequest` instance (`Decode` in latest Finch) for our query:
 
