@@ -108,6 +108,8 @@ If you want to integrate [GraphiQL](https://github.com/graphql/graphiql) (you sh
 
 1. Pull down the latest [GraphiQL file](https://github.com/graphql/graphiql/blob/master/example/index.html).
 
+1. You may need to adjust the paths within the GraphiQL file if you're using versioned paths, etc.
+
 1. Stick it somewhere in your classpath.
 
 1. Write an endpoint for it:
@@ -126,7 +128,7 @@ If you want to integrate [GraphiQL](https://github.com/graphql/graphiql) (you sh
 
 	  private def classpathResource(name: String): Option[InputStream] = Option(getClass.getResourceAsStream(name))	  
     }
-```
+    ```
 
 # Other bits
 
