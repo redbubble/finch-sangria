@@ -261,6 +261,7 @@ This class contains utility methods for parsing & decoding, mainly there to ensu
 package com.redbubble.util.json
 
 import com.twitter.io.Buf
+import com.redbubble.util.io.BufOps._
 import io.circe._
 
 trait CodecOps {
@@ -284,8 +285,6 @@ trait CodecOps {
 
   final def decode[A](input: Buf)(implicit decoder: Decoder[A]): Either[Error, A] =
     parse(input).flatMap(decoder.decodeJson)
-
-  private def bufToByteBuffer(buf: Buf): ByteBuffer = Owned.extract(buf).toByteBuffer()
 }
 
 object CodecOps extends CodecOps
@@ -346,7 +345,6 @@ package com.redbubble.util.http
 
 import cats.Show
 import com.redbubble.util.cats.ShowOps
-import com.redbubble.util.http.HttpTime.currentTime
 import com.redbubble.util.io.BufOps._
 import com.redbubble.util.io.Charset.DefaultCharset
 import com.redbubble.util.json.JsonPrinter
@@ -448,6 +446,53 @@ trait ResponseOps extends JsonPrinter {
 }
 
 object ResponseOps extends ResponseOps
+```
+
+And utilities for dealing with `Buf`s:
+
+```scala
+package com.redbubble.util.io
+
+import java.nio.charset.{Charset => NioCharset}
+import java.nio.{ByteBuffer, CharBuffer}
+
+import com.redbubble.util.io.Charset.DefaultCharset
+import com.twitter.finagle.netty3.ChannelBufferBuf.Owned
+import com.twitter.io.Buf
+import com.twitter.io.Charsets._
+
+trait BufOps {
+  final def bufToByteArray(buf: Buf): Array[Byte] = {
+    val extracted = Owned.extract(buf)
+    val rawArray = extracted.array()
+    val size = extracted.readableBytes()
+    if (rawArray.length == size) {
+      rawArray
+    } else {
+      val dst = new Array[Byte](size)
+      System.arraycopy(extracted.array(), 0, dst, 0, size)
+      dst
+    }
+  }
+
+  final def bufToByteBuffer(buf: Buf): ByteBuffer = Owned.extract(buf).toByteBuffer()
+
+  final def byteBufferToBuf(bytes: ByteBuffer): Buf = Buf.ByteBuffer.Owned(bytes)
+
+  final def stringToBuf(s: String, charset: NioCharset = DefaultCharset): Buf = {
+    val cb = CharBuffer.wrap(s.toCharArray)
+    val encoded = encoder(charset).encode(cb)
+    byteBufferToBuf(encoded)
+  }
+
+  final def bufToString(buf: Buf, charset: NioCharset = DefaultCharset): String = {
+    val output = new Array[Byte](buf.length)
+    buf.write(output, 0)
+    new String(output, charset)
+  }
+}
+
+object BufOps extends BufOps
 ```
 
 ## Twitter -> Scala Conversions
