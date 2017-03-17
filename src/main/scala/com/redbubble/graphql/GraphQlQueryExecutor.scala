@@ -1,64 +1,116 @@
 package com.redbubble.graphql
 
-import cats.data.Xor
-import com.redbubble.graphql.GraphQlError._
-import com.redbubble.graphql.GraphQlQueryExecutor.ExecutorResult
-import com.redbubble.graphql.SangriaExecutionResult.{SangriaExecutionResult, _}
 import com.redbubble.util.async.syntax._
-import com.redbubble.util.json.JsonCodecOps._
-import com.twitter.util.{Future, Return, Throw}
+import com.redbubble.util.error.ErrorReporter
+import com.redbubble.util.json.CodecOps._
+import com.redbubble.util.json.JsonPrinter
+import com.redbubble.util.metrics.StatsReceiver
+import com.twitter.util.Future
 import io.circe.Json
-import sangria.execution.{ExecutionError, Executor, HandledException}
+import mouse.option._
+import sangria.execution._
+import sangria.marshalling.ResultMarshaller
+import sangria.marshalling.circe.CirceResultMarshaller.Node
 import sangria.marshalling.circe.{CirceInputUnmarshaller, CirceResultMarshaller}
 import sangria.schema.Schema
 
 import scala.concurrent.ExecutionContext
 
 trait GraphQlQueryExecutor {
-  def execute(q: GraphQlQuery)(implicit ec: ExecutionContext): Future[ExecutorResult]
+  /**
+    * Executes a GraphQL query, or mutation.
+    * The resulting `Future` will contain either:
+    *
+    * - `Return` - Indicates a (best guess) successful execution of a query. Will contain a subtype of `GraphQlResult`,
+    * representing whether this was a) `SuccessfulGraphQlResult` a successful result, b) `ClientErrorGraphQlResult` a
+    * client error (e.g. bad query) or b) `ServerErrorGraphQlResult` - an internal error (e.g. malformed GraphQL schema).
+    * - `Throw` - Indicates a catastrphic failure, that a caller should not be expected to handle.
+    *
+    * Note. There is still a possibility in the success case that the query could "fail", for example if a downstream
+    * service returns an error, and that error is handled by the `exceptionHandler` (see below), the query will be
+    * considered a success. The `errors` key within the returns `Json` instance will be non-empty however.
+    *
+    * More information is in this thread: https://gitter.im/sangria-graphql/sangria?at=57e1e94933c63ba01a1c91e5
+    **/
+  def execute(q: GraphQlQuery)(implicit ec: ExecutionContext): Future[GraphQlResult]
 }
 
 object GraphQlQueryExecutor {
-  type ExecutorResult = AggregateGraphQlError Xor GraphQlResult
-
-  def executor[C](schema: Schema[C, Unit], rootContext: C, maxQueryDepth: Int): GraphQlQueryExecutor =
-    new GraphQlQueryExecutor_(schema, rootContext, maxQueryDepth)
+  def executor[C](schema: Schema[C, Unit], rootContext: C, maxQueryDepth: Int)
+      (implicit er: ErrorReporter, statsReceiver: StatsReceiver): GraphQlQueryExecutor =
+    new GraphQlQueryExecutor_(schema, rootContext, maxQueryDepth)(er, statsReceiver)
 }
 
-private final class GraphQlQueryExecutor_[C](
-    schema: Schema[C, Unit], rootContext: C, maxQueryDepth: Int) extends GraphQlQueryExecutor {
+private final class GraphQlQueryExecutor_[C](schema: Schema[C, Unit], rootContext: C, maxQueryDepth: Int)
+    (implicit er: ErrorReporter, statsReceiver: StatsReceiver) extends GraphQlQueryExecutor {
   private val resultMarshaller = CirceResultMarshaller
   private val inputMarshaller = CirceInputUnmarshaller
+  private val executionScheme = ExecutionScheme.Extended
+  private val ExecutionPrefix = "graphql_execution"
+  private val stats = statsReceiver.scope(ExecutionPrefix)
+  private val errorCounter = stats.counter("reported_errors")
 
-  private val errorHandler: Executor.ExceptionHandler = {
-    case (m, t: Throwable) if t.getCause == null =>
-      HandledException(t.getMessage)
-    case (m, t: Throwable) if t.getCause != null =>
-      HandledException(t.getMessage, Map("cause" -> m.scalarNode(t.getCause.getMessage, "String", Set.empty)))
-  }
-
-  // TODO We should differentiate here between a client error & a server error. A client error we should return as a 400,
-  // a server error we should return as some form of 500 (e.g. a DownStreamError should be propagated as a proxy error).
-  // Proposal:
-  // 1) Have a ClientGraphQlError that is for client events.
-  // 2) Have an InternalGraphQlError that is for server events. This likely won't be graphql specific.
-  // 3) Maybe have them both extend GraphQlExecutionError
-  override def execute(q: GraphQlQuery)(implicit ec: ExecutionContext): Future[ExecutorResult] = {
+  override def execute(q: GraphQlQuery)(implicit ec: ExecutionContext): Future[GraphQlResult] = {
     val executionResult = Executor.execute[C, Unit, Json](
       schema = schema,
       queryAst = q.document,
       userContext = rootContext,
       operationName = q.operationName,
       variables = q.variables.getOrElse(emptyJsonObject),
-      exceptionHandler = errorHandler,
+      exceptionHandler = PartialFunction((handleException(Some(q)) _).tupled),
       maxQueryDepth = Some(maxQueryDepth)
-    )(ec, resultMarshaller, inputMarshaller)
-    executionResult.asTwitter(ec).transform {
-      case Return(json) =>
-        val decodedResult = json.as[SangriaExecutionResult](sangriaResultDecoder).leftMap(df => aggregate(graphQlError(df)))
-        Future.value(decodedResult.flatMap(_.map(GraphQlResult)))
-      case Throw(e: ExecutionError) => Future.value(Xor.left(aggregate(e)))
-      case Throw(e: Throwable) => Future.exception(e)
-    }
+    )(ec, resultMarshaller, inputMarshaller, executionScheme)
+    executionResult.asTwitter(ec).map { er =>
+      if (er.errors.isEmpty) {
+        SuccessfulGraphQlResult(er.result)
+      } else {
+        BackendErrorGraphQlResult(er.result, er.errors)
+      }
+    }.rescue(rescueCatastrophicError)
   }
+
+  /**
+    * We use this to process exceptions, these are errors that we want to handle, thus designating them as errors that
+    * we'd expect a caller (i.e. a GraphQL client) to handle (i.e. they are not catastrophic).
+    *
+    * We get a `ResultMarshaller` for creating results, and the underlying error. We add in the type (class name) and
+    * if it has one, the underlying cause.
+    */
+  private def handleException(query: Option[GraphQlQuery])(marshaller: ResultMarshaller, error: Throwable): HandledException = {
+    errorCounter.incr()
+    er.error(error, query.map(rollbarExtraData))
+    val commonFields = Map("type" -> marshaller.scalarNode(error.getClass.getName, "String", Set.empty))
+    val additionalFields = Option(error.getCause).cata(
+      cause => commonFields ++ Map("cause" -> marshaller.scalarNode(errorMessage(cause), "String", Set.empty)),
+      commonFields
+    )
+    HandledException(errorMessage(error), additionalFields)
+  }
+
+  /**
+    * In the advent of a catastrophic error, do our best to figure out if that error is caused by a bad query, or a
+    * problem in the server or downstream service.
+    */
+  private def rescueCatastrophicError: PartialFunction[Throwable, Future[GraphQlResult]] = {
+    case e: QueryAnalysisError =>
+      er.error(e)
+      Future.value(ClientErrorGraphQlResult(e.resolveError))
+    case e: ErrorWithResolver =>
+      er.error(e)
+      Future.value(BackendErrorGraphQlResult(e.resolveError))
+    case e =>
+      er.error(e)
+      val errorNode = new ResultResolver(
+        resultMarshaller, PartialFunction((handleException(None) _).tupled), preserveOriginalErrors = true).resolveError(e).asInstanceOf[Node]
+      Future.value(BackendErrorGraphQlResult(errorNode))
+  }
+
+  private def rollbarExtraData(q: GraphQlQuery) =
+    Map(
+      s"$ExecutionPrefix.query.document" -> q.document.renderCompact,
+      s"$ExecutionPrefix.query.variable" -> q.variables.map(j => JsonPrinter.jsonToString(j)).getOrElse("<Empty>"),
+      s"$ExecutionPrefix.query.operation_name" -> q.operationName.getOrElse("<Empty>")
+    )
+
+  private def errorMessage(t: Throwable): String = s"${t.getClass.getName}: ${t.getMessage}"
 }

@@ -2,50 +2,42 @@
 
 Some simple wrappers around [Sangria](http://sangria-graphql.org) to support its use in [Finch](https://github.com/finagle/finch).
 
-In response to a request on the Sangria gitter channel, this is almost directly pulled from a codebase, no effort was made to make it resusable, sorry. It might not compile without some changes.
+In response to a request on the Sangria gitter channel, this is almost directly pulled from a production codebase, no effort was made to make it resusable, sorry. It might not compile without some changes.
 
 It is a small layer, that is reasonably opininated, which may not be to your liking. In particular:
 
-* We only support the previous version of Finch, basically because the latest version doesn't yet support mixed content types in endpoints. It will probably work in the latest (we have a branch that does, so with a little work it should be ok).
 * We transport GraphQL queries as JSON, over HTTP. This necessitates some nasties from time to time.
 * We use Twitter classes instead of the standard library, for things like `Future` and `Try`.
-* We use `Future`s containing `Option`s or `Xor`s instead a failing `Future`. Failing `Future`s are only used for things that we'd not reasonably expect a client to be able to handle (i.e. something catastrophic).
-* We assume that you want to return some reasonable status codes for errors, rather than `200`s containing the `errors` fields. This may hurt some clients.
+* We use `Future`s containing `Option`s or `Either`s instead a failing `Future`. Failing `Future`s are only used for things that we'd not reasonably expect a client to be able to handle (i.e. something catastrophic).
 * We handle variables in the form of a JSON encoded string (for example from GraphiQL), as well as a straight JSON object.
+* We do our best to give back semi-sane HTTP status codes.
 * We expect that you want strong types for things.
 
 There are some things that need improvement, including:
 
-* Having the variables encoded as `Json` is a bit crap, but it's a quick way to get things up & running, as there is built in support for JSON using a Circe `sangria.marshalling.InputUnmarshaller`.
 * In the same vein, the executor returns `Json`, mainly because of the `CirceResultMarshaller`. Ideally both of these would use some form of class that represented the variables/results, and defined an `InputUnmarshaller` and a `ResultMarshaller` for them respectively. In particular, this leads to the unpleasantness with the re-parsing of the JSON returned from the underlying executor to find the status of the result.
-* Error handling isn't ideal, we don't return the full details of Sangria's errors as we attempt to decode them in order to detect the cause & return the correct status code.
-* We don't do a good job of handling (non-validation) Sangria errors that are the result of client failures (bad queries), or the result of executing the query, e.g. from a downstream service. Both currently return `500`.
 
 # Setup
 
 You will need to add something like the following to your `build.sbt`:
 
 ```
-// We use the latest 0.5.0 version of Circe as it pulls in the Cats 0.6.0 (which Mouse depends on).
-lazy val circeVersion = "0.5.0-M1"
-lazy val catsVersion = "0.6.0"
-lazy val finagleVersion = "6.35.0"
-lazy val finchVersion = "0.11.0-SNAPSHOT"
-lazy val sangriaVersion = "0.7.1"
+lazy val finchVersion = "0.13.1"
+lazy val sangriaVersion = "1.0.0"
+lazy val sangriaCirceVersion = "1.0.1"
+
+lazy val finchCore = "com.github.finagle" %% "finch-core" % finchVersion
+lazy val finchCirce = "com.github.finagle" %% "finch-circe" % finchVersion
+lazy val sangria = "org.sangria-graphql" %% "sangria" % sangriaVersion
+lazy val sangriaRelay = "org.sangria-graphql" %% "sangria-relay" % sangriaVersion
+lazy val sangriaCirce = "org.sangria-graphql" %% "sangria-circe" % sangriaCirceVersion
 
 libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats-core" % catsVersion,
-  "io.circe" %% "circe-core" % circeVersion,
-  "io.circe" %% "circe-generic" % circeVersion,
-  "io.circe" %% "circe-parser" % circeVersion,
-  "com.github.benhutchison" %% "mouse" % "0.2",
-
-  "com.github.finagle" %% "finch-core" % finchVersion,
-  "com.github.finagle" %% "finch-circe" % finchVersion,
-  "org.sangria-graphql" %% "sangria" % sangriaVersion,
-  "org.sangria-graphql" %% "sangria-relay" % sangriaVersion,
-  // depends on 0.4.1 version of Circe, which we don't want)
-  "org.sangria-graphql" %% "sangria-circe" % "0.4.4" excludeAll ExclusionRule(organization = "io.circe")
+  finchCore,
+  finchCirce,
+  sangria,
+  sangriaRelay,
+  sangriaCirce
 )
 ```
 
@@ -58,43 +50,55 @@ The classes rely on conversions between Twitter & Scala classes, you can use bij
     ```scala
     val schema = ...
     val context = ...
-    val executor = GraphQlQueryExecutor.executor(schema, context, maxQueryDepth = 9)
+    val errorReporter = ... // a way to log errors, e.g. Rollbar
+    val serverMetrics = ... // a thin wrapper around com.twitter.finagle.stats.StatsReceiver
+    val executor = GraphQlQueryExecutor.executor(
+      schema, context, maxQueryDepth = 10)(errorReporter, serverMetrics)	
     ```
 
   Set the max depth to whatever suits your schema.
 
-1. Create a Finch `DecodeRequest` instance (`Decode` in latest Finch) for our query:
+1. Create a Finch `Decode.Json` instance for our query:
 
     ```scala
-    implicit val graphQlQueryDecodeRequest: DecodeRequest[GraphQlQuery] =
-        RequestOps.decodeRootJson[GraphQlQuery](queryDecoder, cleanJson)
+	implicit val graphQlQueryDecode: Decode.Json[GraphQlQuery] = 
+	    RequestOps.decodeRootJson[GraphQlQuery](queryDecoder, cleanJson)
     ```
 
 1. Write your endpoint:
 
-    ```scala
+    ```scala	
     object GraphQlApi {
-      def graphQlGet: Endpoint[GraphQlResult] =
+      val stats = StatsReceiver.stats
+
+      def graphQlGet: Endpoint[Json] =
         get("graphql" :: graphqlQuery) { query: GraphQlQuery =>
           executeQuery(query)
-        } handle {
-          case e => errorOutput(e)
         }
 
-      def graphQlPost: Endpoint[GraphQlResult] =
-        post("graphql" :: body.as[GraphQlQuery]) { query: GraphQlQuery =>
+      def graphQlPost: Endpoint[Json] =
+        post("graphql" :: jsonBody[GraphQlQuery]) { query: GraphQlQuery =>
           executeQuery(query)
-        } handle {
-          case e => errorOutput(e)
         }
 
-      private def executeQuery(query: GraphQlQuery): Future[Output[GraphQlResult]] = {
-        val result = executor.execute(query)(globalAsyncExecutionContext)
-        result.map(r => r.fold(e => BadRequest(e), v => Ok(v)))
+      private def executeQuery(query: GraphQlQuery): Future[Output[Json]] = {
+        val operationName = query.operationName.getOrElse("unnamed_operation")
+        stats.counter("count", operationName).incr()
+        Stat.timeFuture(stats.stat("execution_time", operationName)) {
+          runQuery(query)
+        }
       }
 
-      private def errorOutput(e: Throwable): Output[Nothing] =
-        InternalServerError(graphQlError("Error processing GraphQL query", e))
+      private def runQuery(query: GraphQlQuery): Future[Output[Json]] = {
+        val result = executor.execute(query)(globalAsyncExecutionContext)
+
+        // Do our best to map the type of error back to a HTTP status code
+        result.map {
+          case SuccessfulGraphQlResult(json) => Output.payload(json, Status.Ok)
+          case ClientErrorGraphQlResult(json, _) => Output.payload(json, Status.BadRequest)
+          case BackendErrorGraphQlResult(json, _) => Output.payload(json, Status.InternalServerError)
+        }
+      }
     }
     ```
 
@@ -102,24 +106,26 @@ The classes rely on conversions between Twitter & Scala classes, you can use bij
 
 If you want to integrate [GraphiQL](https://github.com/graphql/graphiql) (you should), it's pretty easy.
 
-1. Pull down the [GraphiQL file](https://github.com/graphql/graphiql/blob/master/example/index.html).
+1. Pull down the latest [GraphiQL file](https://github.com/graphql/graphiql/blob/master/example/index.html).
 
 1. Stick it somewhere in your classpath.
 
 1. Write an endpoint for it:
 
-```scala
-def classpathResource(name: String): Option[InputStream] = Option(getClass.getResourceAsStream(name))
+    ```scala
+    object ExploreApi {
+      private val graphiQlPath = "/graphiql.html"
+      val exploreApi = explore
 
-val graphiQlPath = "/graphiql.html"
+      def explore: Endpoint[Response] = get("explore") {
+        classpathResource(graphiQlPath).map(fromStream) match {
+          case Some(content) => htmlResponse(Status.Ok, AsyncStream.fromReader(content, chunkSize = 512.kilobytes.inBytes.toInt))
+          case None => textResponse(Status.InternalServerError, Buf.Utf8(s"Unable to find GraphiQL at '$graphiQlPath'"))
+        }
+      }
 
-def graphiql: Endpoint[AsyncStream[Buf]] =
-  get("graphiql") {
-    classpathResource(graphiQlPath).map(fromStream) match {
-      case Some(g) => Ok(AsyncStream.fromReader(g, chunkSize = 512.kilobytes.inBytes.toInt))
-      case None => InternalServerError(graphQlError(s"Unable to find GraphiQL at '$graphiQlPath'"))
+	  private def classpathResource(name: String): Option[InputStream] = Option(getClass.getResourceAsStream(name))	  
     }
-  }
 ```
 
 # Other bits
@@ -146,7 +152,7 @@ def PixelWidth(w: Int): @@[Int, PixelWidthTag] = tag[PixelWidthTag](w)
 // Define your GraphQL type for the tagged type
 //
 
-private val widthRange = 1 to 4096
+private val widthRange = 1 to MaxImageDimension
 private implicit val widthInput = new ScalarToInput[PixelWidth]
 
 private case object WidthCoercionViolation
@@ -159,9 +165,10 @@ val WidthType = intScalarType(
   s"The width of an image, in pixels, between ${widthRange.start} and ${widthRange.end} (default $DefaultImageWidth).",
   parseWidth, () => WidthCoercionViolation)
 
-val WidthArg = Argument("imageWidth",
-  OptionInputType(WidthType),
-  s"The width of an image, in pixels, between ${widthRange.start} and ${widthRange.end} (default $DefaultImageWidth).", DefaultImageWidth)
+val WidthArg: Argument[PixelWidth] = Argument(
+  name = "width",
+  argumentType = OptionInputType(WidthType),
+  description = s"The width of an image, in pixels, between ${widthRange.start} and ${widthRange.end} (default $DefaultImageWidth).", defaultValue = DefaultImageWidth)
 ```
 
 ## Input types
@@ -187,16 +194,24 @@ val PushNotificationTokenType =
     parseToken, () => PushNotificationTokenCoercionViolation
   )
 
+val PushNotificationTokenArg =
+  Argument("token", PushNotificationTokenType, description = s"An iOS push notification token.")
+
+
 //
 // Input type for our type
 //
-val FieldPushNotificationToken = InputField("token", PushNotificationTokenType, "The push notification token of the device.")
+val FieldPushNotificationToken = InputField(
+  "token",
+  OptionInputType(PushNotificationTokenType),
+  "If available, the push notification token for the device. May be empty if the user has not given permission to send notifications."
+)
 
 val RegisterDeviceType: InputObjectType[DefaultInput] =
   InputObjectType(
     name = "RegisterDevice",
     description = "Register device fields.",
-    fields = List(FieldPushNotificationToken)
+    fields = List(FieldPushNotificationToken, FieldBundleId, FieldAppVersion, FieldOsVersion)
   )
 
 val RegisterDeviceArg = Argument(InputFieldName, RegisterDeviceType, "Register device fields.")
@@ -205,20 +220,30 @@ val RegisterDeviceArg = Argument(InputFieldName, RegisterDeviceType, "Register d
 // Let's use that type in a mutation
 //
 
-def registerDevice(ctx: Context[RootContext, Unit]): Action[RootContext, RegisteredDevice] = {
-  val maybeDevice = for {
-    // Yes! This is typesafe and does What You'd Expect™
-    token <- ctx.inputArg(FieldPushNotificationToken)
-  } yield Device(token)
-  maybeDevice.map(d => ctx.ctx.registerDevice(d)).toScalaTry(graphQlError("Unable to parse input fields"))
+object DeviceRegistration extends InputHelper {
+  def registerDevice(ctx: Context[RootContext, Unit]): Action[RootContext, RegisteredDevice] = {
+    val token = ctx.inputArg(FieldPushNotificationToken).flatten
+    val registeredDevice = for {
+      bundleId <- ctx.inputArg(FieldBundleId)
+      appVersion <- ctx.inputArg(FieldAppVersion).flatMap(fromRawVersion)
+      osVersion <- ctx.inputArg(FieldOsVersion).flatMap(fromRawVersion)
+    } yield {
+      val device = Device.device(token, App(bundleId, appVersion), osVersion)
+      ctx.ctx.registerDevice(device)
+    }
+    registeredDevice.getOrElse(Future.exception(graphQlError("Unable to parse device input fields"))).asScala
+  }
 }
 
-val MutationType = ObjectType(
+val MutationType: ObjectType[RootContext, Unit] = ObjectType(
   "MutationAPI",
+  description = "The Redbubble iOS Mutation API.",
   fields[RootContext, Unit](
-    Field("registerDevice", OptionType(RegisteredDeviceType),
+    Field(
+      name = "registerDevice",
       arguments = List(RegisterDeviceArg),
-      resolve = ctx => registerDevice(ctx)
+      fieldType = OptionType(RegisteredDeviceType),
+      resolve = registerDevice
     )
   )
 )
@@ -233,18 +258,35 @@ This class contains utility methods for parsing & decoding, mainly there to ensu
 ```scala
 package com.redbubble.util.json
 
-import cats.data.Xor
+import com.twitter.io.Buf
 import io.circe._
 
-trait JsonCodecOps {
+trait CodecOps {
   val emptyJsonObject: Json = Json.fromJsonObject(JsonObject.empty)
 
-  final def parse(input: String): ParsingFailure Xor Json = io.circe.jawn.parse(input)
+  /**
+    * @note Do not use this for production code, prefer `parse(Buf)`.
+    */
+  final def parse(input: String): Either[ParsingFailure, Json] = io.circe.jawn.parse(input)
 
-  final def decode[A](input: String)(implicit decoder: Decoder[A]): Error Xor A = io.circe.jawn.decode(input)(decoder)
+  final def parse(input: Buf): Either[ParsingFailure, Json] =
+    io.circe.jawn.parseByteBuffer(bufToByteBuffer(input))
+
+  final def encode[A](a: A)(implicit encoder: Encoder[A]): Json = encoder.apply(a)
+
+  /**
+    * @note Do not use this for production code, prefer `parse(Buf)`.
+    */
+  final def decode[A](input: String)(implicit decoder: Decoder[A]): Either[Error, A] =
+    parse(input).flatMap(decoder.decodeJson)
+
+  final def decode[A](input: Buf)(implicit decoder: Decoder[A]): Either[Error, A] =
+    parse(input).flatMap(decoder.decodeJson)
+	
+  private def bufToByteBuffer(buf: Buf): ByteBuffer = Owned.extract(buf).toByteBuffer()
 }
 
-object JsonCodecOps extends JsonCodecOps
+object CodecOps extends CodecOps
 ```
 
 This class decodes incoming request payloads.
@@ -252,38 +294,40 @@ This class decodes incoming request payloads.
 ```scala
 package com.redbubble.util.http
 
-import com.redbubble.util.error.Errors.jsonDecodeFailedError
-import com.redbubble.util.json.JsonCodecOps
+import com.redbubble.util.http.Errors.jsonDecodeFailedError
+import com.redbubble.util.json.CodecOps
+import com.twitter.io.Buf
 import com.twitter.util.{Return, Throw, Try}
 import io.circe.Decoder
-import io.finch.DecodeRequest
+import io.finch.Decode
 
 trait RequestOps {
-  type JsonCleaner = (String) => String
+  type JsonCleaner = (Buf) => Buf
 
   /**
     * Decodes a payload, where the data to be decoded sits as an object inside a top level `data` field of the
     * request body. For example: `{ "data" : { ... } }`.
     */
-  final def decodeDataJson[A](d: Decoder[A], c: JsonCleaner = identity): DecodeRequest[A] =
-    DecodeRequest.instance(payload => decodePayload(c(payload), dataFieldObjectDecoder(d)))
+  final def decodeDataJson[A](d: Decoder[A], c: JsonCleaner = identity): Decode.Json[A] =
+    Decode.json((payload, _) => decodePayload(c(payload), dataFieldObjectDecoder(d)))
 
   /**
     * Decodes a payload, where the data to be decoded is an object at the root level of the request body. For
     * example: `{ ... }`.
     */
-  final def decodeRootJson[A](d: Decoder[A], c: JsonCleaner = identity): DecodeRequest[A] =
-    DecodeRequest.instance(payload => decodePayload(c(payload), rootObjectDecoder(d)))
+  final def decodeRootJson[A](d: Decoder[A], c: JsonCleaner = identity): Decode.Json[A] =
+    Decode.json((payload, _) => decodePayload(c(payload), rootObjectDecoder(d)))
 
-  private def decodePayload[A](payload: String, decoder: Decoder[A]): Try[A] = {
-    val decodedPayload = JsonCodecOps.decode(payload)(decoder)
+  private def decodePayload[A](payload: Buf, decoder: Decoder[A]): Try[A] = {
+    val decodedPayload = CodecOps.decode(payload)(decoder)
     decodedPayload.fold(
       error => Throw(jsonDecodeFailedError(s"Unable to decode JSON payload: ${error.getMessage}", error)),
       value => Return(value)
     )
   }
 
-  private def dataFieldObjectDecoder[A](implicit d: Decoder[A]): Decoder[A] = Decoder.instance(c => c.downField("data").as[A](d))
+  private def dataFieldObjectDecoder[A](implicit d: Decoder[A]): Decoder[A] =
+    Decoder.instance(c => c.downField("data").as[A](d))
 
   private def rootObjectDecoder[A](implicit d: Decoder[A]): Decoder[A] = Decoder.instance(c => c.as[A](d))
 }

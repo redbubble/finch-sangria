@@ -1,11 +1,17 @@
 package com.redbubble.graphql
 
-import com.redbubble.util.json.JsonCodecOps._
+import com.redbubble.util.io.BufOps._
+import com.redbubble.util.json.CodecOps._
+import com.twitter.io.Buf
 
 trait GraphQlSampleQueries {
 
-  implicit private[graphql] final class QuotedString(s: String) {
+  implicit private[graphql] final class QuotedString(val s: String) {
     def escapeQuotes: String = s.replace("\"", "\\\"")
+  }
+
+  implicit private[graphql] final class QuotedBuf(val b: Buf) {
+    def escapeQuotes: Buf = stringToBuf(new QuotedString(bufToString(b)).escapeQuotes)
   }
 
   val validQueries = List(
@@ -177,16 +183,16 @@ trait GraphQlSampleQueries {
   )
   val variableJsons = variableStrings.map(v => parse(v.escapeQuotes).getOrElse(emptyJsonObject))
 
-  def queryJsonPayload(query: String): String = s"""{"query":"${query.escapeQuotes}"}"""
+  def queryJsonPayload(query: String): Buf = stringToBuf(s"""{"query":"${query.escapeQuotes}"}""")
 
-  def queryJsonPayloadStrings(query: String, variables: String): String =
-    s"""{"query":"${query.escapeQuotes}","variables":"${variables.escapeQuotes}"}"""
+  def queryJsonPayloadStrings(query: String, variables: String): Buf =
+    stringToBuf(s"""{"query":"${query.escapeQuotes}","variables":"${variables.escapeQuotes}"}""")
 
-  def queryJsonPayloadObject(query: String, variables: String): String =
-    s"""{"query":"${query.escapeQuotes}","variables":$variables}"""
+  def queryJsonPayloadObject(query: String, variables: String): Buf =
+    stringToBuf(s"""{"query":"${query.escapeQuotes}","variables":$variables}""")
 
-  def queryJsonPayload(query: String, variables: String, operation: String): String =
-    s"""{"query":"${query.escapeQuotes}","variables":"${variables.escapeQuotes}","operationName":"$operation"}"""
+  def queryJsonPayload(query: String, variables: String, operation: String): Buf =
+    stringToBuf(s"""{"query":"${query.escapeQuotes}","variables":"${variables.escapeQuotes}","operationName":"$operation"}""")
 }
 
 object GraphQlSampleQueries extends GraphQlSampleQueries
