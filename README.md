@@ -53,7 +53,7 @@ The classes rely on conversions between Twitter & Scala classes, you can use bij
     val errorReporter = ... // a way to log errors, e.g. Rollbar
     val serverMetrics = ... // a thin wrapper around com.twitter.finagle.stats.StatsReceiver
     val executor = GraphQlQueryExecutor.executor(
-      schema, context, maxQueryDepth = 10)(errorReporter, serverMetrics)	
+      schema, context, maxQueryDepth = 10)(errorReporter, serverMetrics)
     ```
 
   Set the max depth to whatever suits your schema.
@@ -61,13 +61,13 @@ The classes rely on conversions between Twitter & Scala classes, you can use bij
 1. Create a Finch `Decode.Json` instance for our query:
 
     ```scala
-	implicit val graphQlQueryDecode: Decode.Json[GraphQlQuery] = 
+	implicit val graphQlQueryDecode: Decode.Json[GraphQlQuery] =
 	    RequestOps.decodeRootJson[GraphQlQuery](queryDecoder, cleanJson)
     ```
 
 1. Write your endpoint:
 
-    ```scala	
+    ```scala
     object GraphQlApi {
       val stats = StatsReceiver.stats
 
@@ -126,7 +126,7 @@ If you want to integrate [GraphiQL](https://github.com/graphql/graphiql) (you sh
         }
       }
 
-	  private def classpathResource(name: String): Option[InputStream] = Option(getClass.getResourceAsStream(name))	  
+	  private def classpathResource(name: String): Option[InputStream] = Option(getClass.getResourceAsStream(name))
     }
     ```
 
@@ -284,7 +284,7 @@ trait CodecOps {
 
   final def decode[A](input: Buf)(implicit decoder: Decoder[A]): Either[Error, A] =
     parse(input).flatMap(decoder.decodeJson)
-	
+
   private def bufToByteBuffer(buf: Buf): ByteBuffer = Owned.extract(buf).toByteBuffer()
 }
 
@@ -336,6 +336,8 @@ trait RequestOps {
 
 object RequestOps extends RequestOps
 ```
+
+## Encoding bits
 
 We also need some code to handle returning responses:
 
@@ -430,7 +432,7 @@ trait ResponseOps extends JsonPrinter {
     Future.value(ResponseOps.textResponse(Status.Unauthorized, Buf.Utf8(message)))
 
   private val formatter = RFC_1123_DATE_TIME.withZone(ZoneOffset.UTC)
-  
+
   private def currentTime(): String = {
     val time = System.currentTimeMillis()
 	formatter.format(Instant.ofEpochMilli(time))
