@@ -2,6 +2,7 @@ package com.redbubble.graphql
 
 import cats.syntax.either._
 import com.redbubble.util.io.BufOps._
+import com.redbubble.util.io.syntax._
 import com.redbubble.util.json.CodecOps._
 import com.twitter.io.Buf
 import io.circe.Decoder.{decodeOption, _}
@@ -17,7 +18,7 @@ trait GraphQlQueryDecoders {
   //
   // See: http://facebook.github.io/graphql/#sec-Line-Terminators
   final val cleanJson: JsonCleaner = { buf =>
-    stringToBuf(bufToString(buf).split('\u000a').map(_.trim).filterNot(s => s.isEmpty || s.startsWith("#")).mkString(" "))
+    buf.asString.split('\u000a').map(_.trim).filterNot(s => s.isEmpty || s.startsWith("#")).mkString(" ").asBuf
   }
 
   final val queryDecoder: Decoder[GraphQlQuery] = Decoder.instance { c =>

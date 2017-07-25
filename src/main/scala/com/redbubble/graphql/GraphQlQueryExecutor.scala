@@ -4,6 +4,7 @@ import com.redbubble.util.async.syntax._
 import com.redbubble.util.error.ErrorReporter
 import com.redbubble.util.json.CodecOps._
 import com.redbubble.util.json.JsonPrinter
+import com.redbubble.util.log.Logger
 import com.redbubble.util.metrics.StatsReceiver
 import com.twitter.util.Future
 import io.circe.Json
@@ -19,6 +20,7 @@ import scala.concurrent.ExecutionContext
 trait GraphQlQueryExecutor {
   /**
     * Executes a GraphQL query, or mutation.
+    *
     * The resulting `Future` will contain either:
     *
     * - `Return` - Indicates a (best guess) successful execution of a query. Will contain a subtype of `GraphQlResult`,
@@ -37,12 +39,12 @@ trait GraphQlQueryExecutor {
 
 object GraphQlQueryExecutor {
   def executor[C](schema: Schema[C, Unit], rootContext: C, maxQueryDepth: Int)
-      (implicit er: ErrorReporter, statsReceiver: StatsReceiver): GraphQlQueryExecutor =
-    new GraphQlQueryExecutor_(schema, rootContext, maxQueryDepth)(er, statsReceiver)
+      (implicit er: ErrorReporter, statsReceiver: StatsReceiver, logger: Logger): GraphQlQueryExecutor =
+    new GraphQlQueryExecutor_(schema, rootContext, maxQueryDepth)(er, statsReceiver, logger)
 }
 
 private final class GraphQlQueryExecutor_[C](schema: Schema[C, Unit], rootContext: C, maxQueryDepth: Int)
-    (implicit er: ErrorReporter, statsReceiver: StatsReceiver) extends GraphQlQueryExecutor {
+    (implicit er: ErrorReporter, statsReceiver: StatsReceiver, logger: Logger) extends GraphQlQueryExecutor {
   private val resultMarshaller = CirceResultMarshaller
   private val inputMarshaller = CirceInputUnmarshaller
   private val executionScheme = ExecutionScheme.Extended
@@ -51,6 +53,7 @@ private final class GraphQlQueryExecutor_[C](schema: Schema[C, Unit], rootContex
   private val errorCounter = stats.counter("reported_errors")
 
   override def execute(q: GraphQlQuery)(implicit ec: ExecutionContext): Future[GraphQlResult] = {
+    logger.trace(s"GRAPHQL operation ${graphqlOperation(q)}, query ${graphqlQuery(q)} with variables ${graphqlVariables(q)}")
     val executionResult = Executor.execute[C, Unit, Json](
       schema = schema,
       queryAst = q.document,
@@ -107,10 +110,16 @@ private final class GraphQlQueryExecutor_[C](schema: Schema[C, Unit], rootContex
 
   private def rollbarExtraData(q: GraphQlQuery) =
     Map(
-      s"$ExecutionPrefix.query.document" -> q.document.renderCompact,
-      s"$ExecutionPrefix.query.variable" -> q.variables.map(j => JsonPrinter.jsonToString(j)).getOrElse("<Empty>"),
-      s"$ExecutionPrefix.query.operation_name" -> q.operationName.getOrElse("<Empty>")
+      s"$ExecutionPrefix.query.document" -> graphqlQuery(q),
+      s"$ExecutionPrefix.query.variable" -> graphqlVariables(q),
+      s"$ExecutionPrefix.query.operation_name" -> graphqlOperation(q)
     )
 
-  private def errorMessage(t: Throwable): String = s"${t.getClass.getName}: ${t.getMessage}"
+  private def graphqlQuery(q: GraphQlQuery) = q.document.renderCompact
+
+  private def graphqlOperation(q: GraphQlQuery) = q.operationName.getOrElse("<Empty>")
+
+  private def graphqlVariables(q: GraphQlQuery) = q.variables.map(j => JsonPrinter.jsonToString(j)).getOrElse("<Empty>")
+
+  private def errorMessage(t: Throwable): String = Option(t.getMessage).getOrElse(t.getClass.getName)
 }
