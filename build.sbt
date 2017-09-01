@@ -4,11 +4,17 @@ name := "finch-sangria"
 
 enablePlugins(GitVersioning, GitBranchPrompt)
 
-ScriptedPlugin.scriptedSettings
-
-scriptedBufferLog := false
-
 git.useGitDescribe := true
+
+publishMavenStyle := false
+
+bintrayOrganization := Some("redbubble")
+
+bintrayPackageLabels := Seq("finch", "sangria", "graphql")
+
+bintrayRepository := "finch-sangria-releases"
+
+licenses += ("BSD-3-Clause", url("https://opensource.org/licenses/BSD-3-Clause"))
 
 scalacOptions ++= List(
   "-unchecked",
@@ -42,7 +48,7 @@ lazy val sangriaVersion = "1.3.0"
 lazy val sangriaCirceVersion = "1.1.0"
 lazy val specsVersion = "3.9.5"
 
-libraryDependencies += Seq(
+libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-core" % catsVersion,
   "io.circe" %% "circe-core" % circeVersion,
   "io.circe" %% "circe-generic" % circeVersion,
@@ -56,13 +62,3 @@ libraryDependencies += Seq(
   "org.specs2" %% "specs2-core" % specsVersion % "test",
   "org.specs2" %% "specs2-scalacheck" % specsVersion % "test"
 )
-
-publishMavenStyle := false
-
-bintrayOrganization := Some("redbubble")
-
-bintrayPackageLabels := Seq("finch", "sangria", "graphql")
-
-bintrayRepository := "finch-sangria-releases"
-
-licenses += ("BSD-3-Clause", url("https://opensource.org/licenses/BSD-3-Clause"))
