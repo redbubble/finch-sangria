@@ -16,6 +16,12 @@ There are some things that need improvement, including:
 * We are hard coded to Circe, it should be fairly easy to decouple it should you so wish.
 * In the same vein, the executor returns `Json`, mainly because of the `CirceResultMarshaller`. Ideally both of these would use some form of class that represented the variables/results, and defined an `InputUnmarshaller` and a `ResultMarshaller` for them respectively. In particular, this leads to the unpleasantness with the re-parsing of the JSON returned from the underlying executor to find the status of the result.
 
+
+If you like this, you might like other open source code from Redbubble:
+
+* [RB GraphQL Template](https://github.com/redbubble/rb-graphql-template) - A template for Scala HTTP GraphQL services.
+* [finagle-hawk](https://github.com/redbubble/finagle-hawk) - HTTP Holder-Of-Key Authentication Scheme for Finagle.
+
 # Setup
 
 You will need to add something like the following to your `build.sbt`:
