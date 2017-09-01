@@ -53,7 +53,7 @@ libraryDependencies ++= Seq(
     val context = ...          // your root context
     val errorReporter = ...    // a way to log errors, e.g. Rollbar
     val serverMetrics = ...    // a com.twitter.finagle.stats.StatsReceiver
-    val logger = ...           // a thin wrapper around SLF4J logging
+    val logger = ...           // a slf4j.Logger instance
 
     val executor = GraphQlQueryExecutor.executor(
       schema, context, maxQueryDepth = 10)(errorReporter, serverMetrics, logger)

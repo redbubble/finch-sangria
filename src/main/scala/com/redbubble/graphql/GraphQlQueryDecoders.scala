@@ -1,9 +1,9 @@
 package com.redbubble.graphql
 
 import cats.syntax.either._
-import com.redbubble.util.io.BufOps._
-import com.redbubble.util.io.syntax._
-import com.redbubble.util.json.CodecOps._
+import com.redbubble.graphql.util.io.BufOps._
+import com.redbubble.graphql.util.io.syntax._
+import com.redbubble.graphql.util.json.CodecOps._
 import com.twitter.io.Buf
 import io.circe.Decoder.{decodeOption, _}
 import io.circe._

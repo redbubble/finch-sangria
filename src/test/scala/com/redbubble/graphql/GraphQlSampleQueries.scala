@@ -1,7 +1,7 @@
 package com.redbubble.graphql
 
-import com.redbubble.util.io.BufOps._
-import com.redbubble.util.json.CodecOps._
+import com.redbubble.graphql.util.io.BufOps._
+import com.redbubble.graphql.util.json.CodecOps._
 import com.twitter.io.Buf
 
 trait GraphQlSampleQueries {

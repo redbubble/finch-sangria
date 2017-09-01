@@ -2,7 +2,7 @@ package com.redbubble.graphql
 
 import com.redbubble.graphql.GraphQlQueryExecutor.ExecutionPrefix
 import com.redbubble.graphql.SimpleQueryRenderer._
-import com.redbubble.util.error.ErrorReporter
+import com.redbubble.graphql.util.error.ErrorReporter
 import com.twitter.finagle.stats.Counter
 import com.twitter.util.Future
 import mouse.option._

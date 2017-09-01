@@ -3,8 +3,8 @@ package com.redbubble.graphql
 import java.nio.charset.StandardCharsets.UTF_8
 
 import com.redbubble.graphql.GraphQlSampleQueries._
-import com.redbubble.util.io.BufOps
-import com.redbubble.util.json.CodecOps
+import com.redbubble.graphql.util.io.BufOps
+import com.redbubble.graphql.util.json.CodecOps
 import com.twitter.io.Buf
 import org.scalacheck.Gen
 import sangria.parser.QueryParser

@@ -1,7 +1,7 @@
 package com.redbubble.graphql
 
 import com.redbubble.graphql.GraphQlQueryDecoders._
-import com.redbubble.util.spec.SpecHelper
+import com.redbubble.graphql.util.spec.SpecHelper
 import com.twitter.io.Buf
 import io.circe.Json
 import org.scalacheck.Prop._
@@ -35,7 +35,7 @@ final class GraphQlQueryDecodersSpec extends Specification with SpecHelper with 
 
   s2"GraphQL variables (encoded as JSON) can be decoded$graphQlVariableProps"
 
-  import com.redbubble.util.io.syntax._
+  import com.redbubble.graphql.util.io.syntax._
 
   // Note. The JSON we generate here is explicitly wrapped in quotes, so that it mirrors what we'd get when parsing the
   // actual JSON sent through.
