@@ -1,17 +1,15 @@
 package com.redbubble.graphql
 
+import com.redbubble.graphql.GraphQlQueryExecutor._
+import com.redbubble.graphql.SimpleQueryRenderer._
 import com.redbubble.util.async.syntax._
 import com.redbubble.util.error.ErrorReporter
 import com.redbubble.util.json.CodecOps._
-import com.redbubble.util.json.JsonPrinter
 import com.redbubble.util.log.Logger
-import com.redbubble.util.metrics.StatsReceiver
+import com.twitter.finagle.stats.StatsReceiver
 import com.twitter.util.Future
 import io.circe.Json
-import mouse.option._
 import sangria.execution._
-import sangria.marshalling.ResultMarshaller
-import sangria.marshalling.circe.CirceResultMarshaller.Node
 import sangria.marshalling.circe.{CirceInputUnmarshaller, CirceResultMarshaller}
 import sangria.schema.Schema
 
@@ -38,6 +36,8 @@ trait GraphQlQueryExecutor {
 }
 
 object GraphQlQueryExecutor {
+  val ExecutionPrefix = "graphql_execution"
+
   def executor[C](schema: Schema[C, Unit], rootContext: C, maxQueryDepth: Int)
       (implicit er: ErrorReporter, statsReceiver: StatsReceiver, logger: Logger): GraphQlQueryExecutor =
     new GraphQlQueryExecutor_(schema, rootContext, maxQueryDepth)(er, statsReceiver, logger)
@@ -48,78 +48,39 @@ private final class GraphQlQueryExecutor_[C](schema: Schema[C, Unit], rootContex
   private val resultMarshaller = CirceResultMarshaller
   private val inputMarshaller = CirceInputUnmarshaller
   private val executionScheme = ExecutionScheme.Extended
-  private val ExecutionPrefix = "graphql_execution"
   private val stats = statsReceiver.scope(ExecutionPrefix)
-  private val errorCounter = stats.counter("reported_errors")
+  private val handledErrorsCounter = stats.counter("errors", "handled")
+  private val catastrophicErrorsCounter = stats.counter("errors", "catastrophic")
 
   override def execute(q: GraphQlQuery)(implicit ec: ExecutionContext): Future[GraphQlResult] = {
     logger.trace(s"GRAPHQL operation ${graphqlOperation(q)}, query ${graphqlQuery(q)} with variables ${graphqlVariables(q)}")
-    val executionResult = Executor.execute[C, Unit, Json](
+    val result = runQuery(q)(ec)
+    handleErrors(result.asTwitter(ec))
+  }
+
+  private def runQuery(q: GraphQlQuery)(implicit ec: ExecutionContext) = {
+    Executor.execute[C, Unit, Json](
       schema = schema,
       queryAst = q.document,
       userContext = rootContext,
       operationName = q.operationName,
       variables = q.variables.getOrElse(emptyJsonObject),
-      exceptionHandler = PartialFunction((handleException(Some(q)) _).tupled),
+      exceptionHandler = GraphQlExceptionHandler.exceptionHandler(Some(q))(handledErrorsCounter, er),
       maxQueryDepth = Some(maxQueryDepth)
-    )(ec, resultMarshaller, inputMarshaller, executionScheme)
-    executionResult.asTwitter(ec).map { er =>
+    )(
+      executionContext = ec,
+      marshaller = resultMarshaller,
+      um = inputMarshaller,
+      scheme = executionScheme
+    )
+  }
+
+  private def handleErrors(result: Future[ExecutionResult[C, Json]]) =
+    result.map { er =>
       if (er.errors.isEmpty) {
         SuccessfulGraphQlResult(er.result)
       } else {
         BackendErrorGraphQlResult(er.result, er.errors)
       }
-    }.rescue(rescueCatastrophicError)
-  }
-
-  /**
-    * We use this to process exceptions, these are errors that we want to handle, thus designating them as errors that
-    * we'd expect a caller (i.e. a GraphQL client) to handle (i.e. they are not catastrophic).
-    *
-    * We get a `ResultMarshaller` for creating results, and the underlying error. We add in the type (class name) and
-    * if it has one, the underlying cause.
-    */
-  private def handleException(query: Option[GraphQlQuery])(marshaller: ResultMarshaller, error: Throwable): HandledException = {
-    errorCounter.incr()
-    er.error(error, query.map(rollbarExtraData))
-    val commonFields = Map("type" -> marshaller.scalarNode(error.getClass.getName, "String", Set.empty))
-    val additionalFields = Option(error.getCause).cata(
-      cause => commonFields ++ Map("cause" -> marshaller.scalarNode(errorMessage(cause), "String", Set.empty)),
-      commonFields
-    )
-    HandledException(errorMessage(error), additionalFields)
-  }
-
-  /**
-    * In the advent of a catastrophic error, do our best to figure out if that error is caused by a bad query, or a
-    * problem in the server or downstream service.
-    */
-  private def rescueCatastrophicError: PartialFunction[Throwable, Future[GraphQlResult]] = {
-    case e: QueryAnalysisError =>
-      er.error(e)
-      Future.value(ClientErrorGraphQlResult(e.resolveError))
-    case e: ErrorWithResolver =>
-      er.error(e)
-      Future.value(BackendErrorGraphQlResult(e.resolveError))
-    case e =>
-      er.error(e)
-      val errorNode = new ResultResolver(
-        resultMarshaller, PartialFunction((handleException(None) _).tupled), preserveOriginalErrors = true).resolveError(e).asInstanceOf[Node]
-      Future.value(BackendErrorGraphQlResult(errorNode))
-  }
-
-  private def rollbarExtraData(q: GraphQlQuery) =
-    Map(
-      s"$ExecutionPrefix.query.document" -> graphqlQuery(q),
-      s"$ExecutionPrefix.query.variable" -> graphqlVariables(q),
-      s"$ExecutionPrefix.query.operation_name" -> graphqlOperation(q)
-    )
-
-  private def graphqlQuery(q: GraphQlQuery) = q.document.renderCompact
-
-  private def graphqlOperation(q: GraphQlQuery) = q.operationName.getOrElse("<Empty>")
-
-  private def graphqlVariables(q: GraphQlQuery) = q.variables.map(j => JsonPrinter.jsonToString(j)).getOrElse("<Empty>")
-
-  private def errorMessage(t: Throwable): String = Option(t.getMessage).getOrElse(t.getClass.getName)
+    }.rescue(GraphQlExceptionHandler.rescueCatastrophicError(resultMarshaller, catastrophicErrorsCounter, er))
 }
