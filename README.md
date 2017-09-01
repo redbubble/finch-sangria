@@ -19,7 +19,7 @@ There are some things that need improvement, including:
 
 If you like this, you might like other open source code from Redbubble:
 
-* [RB GraphQL Template](https://github.com/redbubble/rb-graphql-template) - A template for Scala HTTP GraphQL services.
+* [rb-graphql-template](https://github.com/redbubble/rb-graphql-template) - A template for Scala HTTP GraphQL services.
 * [finagle-hawk](https://github.com/redbubble/finagle-hawk) - HTTP Holder-Of-Key Authentication Scheme for Finagle.
 
 # Setup
