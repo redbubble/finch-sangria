@@ -6,13 +6,11 @@ enablePlugins(GitVersioning, GitBranchPrompt)
 
 git.useGitDescribe := true
 
-//publishMavenStyle := false
-
 bintrayOrganization := Some("redbubble")
 
-bintrayPackageLabels := Seq("finch", "sangria", "graphql")
+bintrayRepository := "open-source"
 
-bintrayRepository := "finch-sangria-releases"
+bintrayPackageLabels := Seq("finch", "sangria", "graphql")
 
 licenses += ("BSD New", url("https://opensource.org/licenses/BSD-3-Clause"))
 
