@@ -38,6 +38,7 @@ scalacOptions ++= Seq(
 
 )
 
+lazy val rbUtilsVersion = "0.1.0"
 lazy val catsVersion = "0.9.0"
 lazy val mouseVersion = "0.9"
 lazy val circeVersion = "0.8.0"
@@ -48,6 +49,7 @@ lazy val specsVersion = "3.9.5"
 lazy val slf4jVersion = "1.7.25"
 
 libraryDependencies ++= Seq(
+  "com.redbubble" %% "rb-scala-utils" % rbUtilsVersion,
   "org.typelevel" %% "cats-core" % catsVersion,
   "io.circe" %% "circe-core" % circeVersion,
   "io.circe" %% "circe-generic" % circeVersion,
