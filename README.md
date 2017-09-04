@@ -6,7 +6,8 @@ It is a small layer, that is reasonably opininated, which may not be to your lik
 
 * We transport GraphQL queries as JSON, over HTTP. This necessitates some nasties from time to time.
 * We use Twitter classes instead of the standard library, for things like `Future` and `Try`.
-* We use `Future`s containing `Option`s or `Either`s instead a failing `Future`. Failing `Future`s are only used for things that we'd not reasonably expect a client to be able to handle (i.e. something catastrophic).
+* We use `Future`s containing `Option`s or `Either`s instead a failing `Future`. Failing `Future`s are only used for
+  things that we'd not reasonably expect a client to be able to handle (i.e. something catastrophic).
 * We handle variables in the form of a JSON encoded string (for example from GraphiQL), as well as a straight JSON object.
 * We do our best to give back semi-sane HTTP status codes.
 * We expect that you want strong types for things.
@@ -14,8 +15,10 @@ It is a small layer, that is reasonably opininated, which may not be to your lik
 There are some things that need improvement, including:
 
 * We are hard coded to Circe, it should be fairly easy to decouple it should you so wish.
-* In the same vein, the executor returns `Json`, mainly because of the `CirceResultMarshaller`. Ideally both of these would use some form of class that represented the variables/results, and defined an `InputUnmarshaller` and a `ResultMarshaller` for them respectively. In particular, this leads to the unpleasantness with the re-parsing of the JSON returned from the underlying executor to find the status of the result.
-
+* In the same vein, the executor returns `Json`, mainly because of the `CirceResultMarshaller`. Ideally both of these
+  would use some form of class that represented the variables/results, and defined an `InputUnmarshaller` and a
+  `ResultMarshaller` for them respectively. In particular, this leads to the unpleasantness with the re-parsing of the
+  JSON returned from the underlying executor to find the status of the result.
 
 If you like this, you might like other open source code from Redbubble:
 
@@ -239,6 +242,17 @@ val MutationType: ObjectType[RootContext, Unit] = ObjectType(
     )
   )
 )
+```
+
+# Making a Release
+
+For contributors, a cheat sheet to making a new release:
+
+```shell
+$ git commit -m "New things" && git push
+$ git tag -a v0.0.3 -m "v0.0.3"
+$ git push --tags
+$ ./sbt publish
 ```
 
 # Contributing
