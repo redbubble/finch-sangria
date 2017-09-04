@@ -5,10 +5,10 @@ import com.redbubble.graphql.SimpleQueryRenderer._
 import com.redbubble.util.async.syntax._
 import com.redbubble.util.error.ErrorReporter
 import com.redbubble.util.json.CodecOps._
-import com.twitter.finagle.stats.StatsReceiver
+import com.redbubble.util.log.Logger
+import com.redbubble.util.metrics.StatsReceiver
 import com.twitter.util.Future
 import io.circe.Json
-import org.slf4j.Logger
 import sangria.execution._
 import sangria.marshalling.circe.{CirceInputUnmarshaller, CirceResultMarshaller}
 import sangria.schema.Schema

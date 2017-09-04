@@ -35,7 +35,7 @@ You will need to add something like the following to your `build.sbt`:
 ```scala
 resolvers += Resolver.jcenterRepo
 
-libraryDependencies += "com.redbubble" %% "finch-sangria" % "0.1.0"
+libraryDependencies += "com.redbubble" %% "finch-sangria" % "0.2.0"
 ```
 
 # Usage
@@ -46,8 +46,8 @@ libraryDependencies += "com.redbubble" %% "finch-sangria" % "0.1.0"
     val schema = ...           // your Sangria schema
     val context = ...          // your root context
     val errorReporter = ...    // a way to log errors, e.g. Rollbar
-    val serverMetrics = ...    // a com.twitter.finagle.stats.StatsReceiver
-    val logger = ...           // a slf4j.Logger instance
+    val serverMetrics = ...    // your stats receiver
+    val logger = ...           // a logger
 
     val executor = GraphQlQueryExecutor.executor(
       schema, context, maxQueryDepth = 10)(errorReporter, serverMetrics, logger)
