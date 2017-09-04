@@ -1,6 +1,6 @@
 package com.redbubble.graphql
 
-import com.redbubble.graphql.util.json.JsonPrinter
+import com.redbubble.util.json.JsonPrinter
 
 object SimpleQueryRenderer {
   def graphqlQuery(q: GraphQlQuery): String = q.document.renderCompact
