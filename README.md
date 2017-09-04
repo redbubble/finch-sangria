@@ -27,27 +27,9 @@ If you like this, you might like other open source code from Redbubble:
 You will need to add something like the following to your `build.sbt`:
 
 ```scala
-lazy val catsVersion = "0.9.0"
-lazy val mouseVersion = "0.9"
-lazy val circeVersion = "0.8.0"
-lazy val finchVersion = "0.15.1"
-lazy val sangriaVersion = "1.3.0"
-lazy val sangriaCirceVersion = "1.1.0"
-lazy val slf4jVersion = "1.7.25"
+resolvers += Resolver.jcenterRepo
 
-libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats-core" % catsVersion,
-  "io.circe" %% "circe-core" % circeVersion,
-  "io.circe" %% "circe-generic" % circeVersion,
-  "io.circe" %% "circe-parser" % circeVersion,
-  "com.github.benhutchison" %% "mouse" % mouseVersion,
-  "com.github.finagle" %% "finch-core" % finchVersion,
-  "com.github.finagle" %% "finch-circe" % finchVersion,
-  "org.sangria-graphql" %% "sangria" % sangriaVersion,
-  "org.sangria-graphql" %% "sangria-relay" % sangriaVersion,
-  "org.sangria-graphql" %% "sangria-circe" % sangriaCirceVersion,
-  "org.slf4j" % "slf4j-api" % slf4jVersion
-)
+libraryDependencies += "org.typelevel" %% "cats-core" % "0."
 ```
 
 # Usage
