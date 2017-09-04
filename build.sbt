@@ -14,7 +14,7 @@ bintrayPackageLabels := Seq("finch", "sangria", "graphql")
 
 bintrayRepository := "finch-sangria-releases"
 
-licenses += ("BSD 3-Clause", url("https://opensource.org/licenses/BSD-3-Clause"))
+licenses += ("BSD New", url("https://opensource.org/licenses/BSD-3-Clause"))
 
 scalacOptions ++= Seq(
   "-unchecked",
