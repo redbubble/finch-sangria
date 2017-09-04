@@ -24,6 +24,7 @@ If you like this, you might like other open source code from Redbubble:
 
 * [rb-scala-utils](https://github.com/redbubble/rb-scala-utils) - Miscellaneous utilities (common code) for building
   Scala-based services, using Finch (on which this project depends).
+* [finch-template](https://github.com/redbubble/finch-template) - A template project for Finch-based services.
 * [rb-graphql-template](https://github.com/redbubble/rb-graphql-template) - A template for Scala HTTP GraphQL services.
 * [finagle-hawk](https://github.com/redbubble/finagle-hawk) - HTTP Holder-Of-Key Authentication Scheme for Finagle.
 

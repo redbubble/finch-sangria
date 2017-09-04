@@ -10,7 +10,7 @@ import org.specs2.mutable.Specification
 import scalaz.Generators
 
 trait SpecLogging {
-  final val log = new Logger("rb-util-test")(singleThreadedFuturePool)
+  final val log = new Logger("finch-sangria-test")(singleThreadedFuturePool)
 }
 
 object SpecLogging extends SpecLogging
