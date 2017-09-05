@@ -38,7 +38,7 @@ scalacOptions ++= Seq(
 
 )
 
-lazy val rbUtilsVersion = "0.1.0"
+lazy val rbUtilsVersion = "0.1.1"
 lazy val catsVersion = "0.9.0"
 lazy val mouseVersion = "0.9"
 lazy val circeVersion = "0.8.0"
