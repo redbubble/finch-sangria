@@ -1,8 +1,9 @@
-package com.redbubble.graphql
+package com.redbubble.graphql.spec
 
 import java.nio.charset.StandardCharsets.UTF_8
 
-import com.redbubble.graphql.GraphQlSampleQueries._
+import com.redbubble.graphql.GraphQlQuery
+import com.redbubble.graphql.spec.GraphQlSampleQueries._
 import com.redbubble.util.io.BufOps
 import com.redbubble.util.json.CodecOps
 import com.twitter.io.Buf

@@ -1,4 +1,4 @@
-package com.redbubble.graphql
+package com.redbubble.graphql.spec
 
 import com.redbubble.util.io.BufOps._
 import com.redbubble.util.json.CodecOps._

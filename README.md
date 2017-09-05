@@ -35,7 +35,7 @@ You will need to add something like the following to your `build.sbt`:
 ```scala
 resolvers += Resolver.jcenterRepo
 
-libraryDependencies += "com.redbubble" %% "finch-sangria" % "0.2.0"
+libraryDependencies += "com.redbubble" %% "finch-sangria" % "0.3.0"
 ```
 
 # Usage
@@ -55,16 +55,11 @@ libraryDependencies += "com.redbubble" %% "finch-sangria" % "0.2.0"
 
   Set the max depth to whatever suits your schema (you'll likely need >= 10 for the introspection query).
 
-1. Create a Finch `Decode.Json` instance for our query:
-
-    ```scala
-	implicit val graphQlQueryDecode: Decode.Json[GraphQlQuery] =
-	    RequestOps.decodeRootJson[GraphQlQuery](queryDecoder, cleanJson)
-    ```
-
 1. Write your endpoint:
 
     ```scala
+    import com.redbubble.graphql.GraphQlRequestDecoders.graphQlQueryDecode
+
     object GraphQlApi {
       val stats = StatsReceiver.stats
 
@@ -97,6 +92,16 @@ libraryDependencies += "com.redbubble" %% "finch-sangria" % "0.2.0"
         }
       }
     }
+    ```
+
+1. Bring the response encoder into scope when you create your `Service`:
+
+    ```scala
+    import com.redbubble.graphql.GraphQlEncoders.graphQlResultEncode
+
+    val api = GraphQlApi.graphQlGet :+: GraphQlApi.graphQlPost
+    val service = api.toServiceAs[Application.Json]
+    Http.server.serve(":8080", service)
     ```
 
 # GraphiQL

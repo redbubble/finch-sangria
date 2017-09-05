@@ -1,6 +1,7 @@
 package com.redbubble.graphql
 
 import com.redbubble.graphql.GraphQlQueryDecoders._
+import com.redbubble.graphql.spec.{GraphQlSampleQueries, SpecHelper}
 import com.twitter.io.Buf
 import io.circe.Json
 import org.scalacheck.Prop._

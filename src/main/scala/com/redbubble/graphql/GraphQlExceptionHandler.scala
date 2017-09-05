@@ -49,7 +49,7 @@ object GraphQlExceptionHandler {
     */
   private def handleException(query: Option[GraphQlQuery])(marshaller: ResultMarshaller, error: Throwable)(implicit errorCounter: Counter, er: ErrorReporter): HandledException = {
     errorCounter.incr()
-    er.error(error, query.map(rollbarExtraData))
+    er.error(error, query.map(errorReporterExtraData))
     val commonFields = Map("type" -> marshaller.scalarNode(error.getClass.getName, "String", Set.empty))
     val additionalFields = Option(error.getCause).cata(
       cause => commonFields ++ Map("cause" -> marshaller.scalarNode(errorMessage(cause), "String", Set.empty)),
@@ -58,7 +58,7 @@ object GraphQlExceptionHandler {
     HandledException(errorMessage(error), additionalFields)
   }
 
-  private def rollbarExtraData(q: GraphQlQuery) =
+  private def errorReporterExtraData(q: GraphQlQuery) =
     Map(
       s"$ExecutionPrefix.query.document" -> graphqlQuery(q),
       s"$ExecutionPrefix.query.variable" -> graphqlVariables(q),
