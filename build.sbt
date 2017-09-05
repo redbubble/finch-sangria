@@ -35,7 +35,15 @@ scalacOptions ++= Seq(
   "-Xfatal-warnings",
   "-Ywarn-value-discard",
   "-Ypartial-unification"
+)
 
+scalacOptions in Test ++= Seq("-Yrangepos")
+
+resolvers ++= Seq(
+  Resolver.jcenterRepo,
+  Resolver.sonatypeRepo("releases"),
+  Resolver.sonatypeRepo("snapshots"),
+  "Twitter" at "http://maven.twttr.com"
 )
 
 lazy val rbUtilsVersion = "0.1.1"
