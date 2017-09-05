@@ -1,5 +1,7 @@
 # Finch GraphQL support
 
+[![Build status](https://img.shields.io/travis/redbubble/finch-sangria/master.svg)](https://travis-ci.org/redbubble/finch-sangria)
+
 Some simple wrappers around [Sangria](http://sangria-graphql.org) to support its use in [Finch](https://github.com/finagle/finch).
 
 It is a small layer, that is reasonably opininated, which may not be to your liking. In particular:
