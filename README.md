@@ -37,7 +37,7 @@ You will need to add something like the following to your `build.sbt`:
 ```scala
 resolvers += Resolver.jcenterRepo
 
-libraryDependencies += "com.redbubble" %% "finch-sangria" % "0.3.1"
+libraryDependencies += "com.redbubble" %% "finch-sangria" % "0.3.2"
 ```
 
 # Usage
