@@ -9,6 +9,7 @@ import mouse.option._
 import sangria.execution.{ErrorWithResolver, HandledException, QueryAnalysisError, ResultResolver, ExceptionHandler => SangriaExceptionHandler}
 import sangria.marshalling.ResultMarshaller
 import sangria.marshalling.circe.CirceResultMarshaller.Node
+import com.redbubble.util.http.GenericMultipleErrors
 
 object GraphQlExceptionHandler {
 
@@ -51,12 +52,23 @@ object GraphQlExceptionHandler {
     errorCounter.incr()
     er.error(error, query.map(errorReporterExtraData))
     val commonFields = Map("type" -> marshaller.scalarNode(error.getClass.getName, "String", Set.empty))
-    val additionalFields = Option(error.getCause).cata(
+    var additionalFields: Map[String, marshaller.Node] = Option(error.getCause).cata(
       cause => commonFields ++ Map("cause" -> marshaller.scalarNode(errorMessage(cause), "String", Set.empty)),
       commonFields
     )
+
+    if(error.getCause().isInstanceOf[GenericMultipleErrors]) {
+      val multiErrors: GenericMultipleErrors = error.getCause().asInstanceOf[GenericMultipleErrors]
+
+      if (multiErrors.errors.nonEmpty) {
+        val errorCodeList: Vector[marshaller.Node] = multiErrors.errors.map(marshaller.scalarNode(_, "String", Set.empty)).toVector
+        additionalFields = additionalFields + ("errors" -> marshaller.arrayNode(errorCodeList))
+      }
+    }
+
     HandledException(errorMessage(error), additionalFields)
   }
+
 
   private def errorReporterExtraData(q: GraphQlQuery) =
     Map(
