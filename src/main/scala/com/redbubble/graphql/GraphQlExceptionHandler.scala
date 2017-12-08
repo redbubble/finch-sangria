@@ -52,7 +52,7 @@ object GraphQlExceptionHandler {
     errorCounter.incr()
     er.error(error, query.map(errorReporterExtraData))
     val commonFields = Map("type" -> marshaller.scalarNode(error.getClass.getName, "String", Set.empty))
-    var additionalFields: Map[String, marshaller.Node] = Option(error.getCause).cata(
+    var additionalFields = Option(error.getCause).cata(
       cause => commonFields ++ Map("cause" -> marshaller.scalarNode(errorMessage(cause), "String", Set.empty)),
       commonFields
     )
