@@ -46,7 +46,7 @@ resolvers ++= Seq(
   "Twitter" at "http://maven.twttr.com"
 )
 
-lazy val rbUtilsVersion = "0.2.4"
+lazy val rbUtilsVersion = "0.2.8"
 lazy val catsVersion = "0.9.0"
 lazy val mouseVersion = "0.9"
 lazy val circeVersion = "0.8.0"
