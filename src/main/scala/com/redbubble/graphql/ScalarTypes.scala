@@ -35,6 +35,29 @@ object ScalarTypes {
     )
 
   /**
+    * A scalar type for strongly typed (or tagged type) wrappers (wrapper type `V`) around `Boolean`s.
+    *
+    * @param typeName    The name of the type.
+    * @param description The description (human readable) of the type.
+    * @param value       The function to construct a value of this type from a `Boolean`.
+    * @param error       The function to use when the value passed is not a `Boolean`.
+    */
+  def booleanScalarType[V, E <: ValueCoercionViolation](
+                                                         typeName: String, description: String, value: Boolean => Either[E, V], error: () => E): ScalarType[V] =
+    ScalarType[V](typeName,
+      coerceUserInput = {
+        case s: Boolean => value(s)
+        case _ => Left(error())
+      },
+      coerceInput = {
+        case ast.BooleanValue(s, _, _) => value(s)
+        case _ => Left(error())
+      },
+      coerceOutput = (c, _) => c,
+      description = Some(description)
+    )
+
+  /**
     * A scalar type for strongly typed (or tagged type) wrappers (`V`) around `Int`s.
     *
     * @param typeName    The name of the type.
