@@ -33,6 +33,7 @@ trait GraphQlQueryExecutor {
     * More information is in this thread: https://gitter.im/sangria-graphql/sangria?at=57e1e94933c63ba01a1c91e5
     **/
   def execute(q: GraphQlQuery)(implicit ec: ExecutionContext): Future[GraphQlResult]
+  def context: Any
 }
 
 object GraphQlQueryExecutor {
@@ -57,6 +58,9 @@ private final class GraphQlQueryExecutor_[C](schema: Schema[C, Unit], rootContex
     val result = runQuery(q)(ec)
     handleErrors(result.asTwitter(ec))
   }
+
+  override def context =
+    rootContext
 
   private def runQuery(q: GraphQlQuery)(implicit ec: ExecutionContext) = {
     Executor.execute[C, Unit, Json](
