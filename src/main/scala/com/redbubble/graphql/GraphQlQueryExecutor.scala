@@ -33,6 +33,12 @@ trait GraphQlQueryExecutor {
     * More information is in this thread: https://gitter.im/sangria-graphql/sangria?at=57e1e94933c63ba01a1c91e5
     **/
   def execute(q: GraphQlQuery)(implicit ec: ExecutionContext): Future[GraphQlResult]
+
+  /**
+    * A reference to the original context associated with the GraphQL query.
+    *
+    * @return The context
+    */
   def context: Any
 }
 
