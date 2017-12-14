@@ -88,7 +88,7 @@ private final class GraphQlQueryExecutor_[C](schema: Schema[C, Unit], rootContex
   private def handleErrors(result: Future[ExecutionResult[C, Json]]) =
     result.map { er =>
       if (er.errors.isEmpty) {
-        SuccessfulGraphQlResult(er.result)
+        SuccessfulGraphQlResult(er.result, er.ctx.asInstanceOf[Any])
       } else {
         BackendErrorGraphQlResult(er.result, er.errors)
       }
