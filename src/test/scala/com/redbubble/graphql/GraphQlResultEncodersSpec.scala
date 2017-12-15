@@ -13,7 +13,7 @@ final class GraphQlResultEncodersSpec extends Specification with SpecHelper with
 
   val encodeResultProp = new Properties("GraphQlResult JSON encoding") {
     property("encode just returns the contained JSON") = forAll(genJson) { (j: Json) =>
-      SuccessfulGraphQlResult(j).underlying.asJson must beEqualTo(j)
+      SuccessfulGraphQlResult(j, None).underlying.asJson must beEqualTo(j)
     }
   }
 
