@@ -27,7 +27,7 @@ object ScalarTypes {
         case _ => Left(error())
       },
       coerceInput = {
-        case ast.StringValue(s, _, _) => value(s)
+        case ast.StringValue(s, _, _, _, _) => value(s)
         case _ => Left(error())
       },
       coerceOutput = (c, _) => c.toString,

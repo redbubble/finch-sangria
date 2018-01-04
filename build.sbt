@@ -1,6 +1,9 @@
 organization := "com.redbubble"
 
-name := "finch-sangria"
+lazy val buildSettings = Seq(
+  name := "finch-sangria",
+  scalaVersion := "2.12.4"
+)
 
 enablePlugins(GitVersioning, GitBranchPrompt)
 
@@ -46,14 +49,14 @@ resolvers ++= Seq(
   "Twitter" at "http://maven.twttr.com"
 )
 
-lazy val rbUtilsVersion = "0.2.8"
-lazy val catsVersion = "0.9.0"
+lazy val rbUtilsVersion = "0.2.9"
+lazy val catsVersion = "1.0.1"
 lazy val mouseVersion = "0.9"
-lazy val circeVersion = "0.8.0"
-lazy val finchVersion = "0.15.1"
-lazy val sangriaVersion = "1.3.0"
-lazy val sangriaCirceVersion = "1.1.0"
-lazy val specsVersion = "3.9.5"
+lazy val circeVersion = "0.9.0"
+lazy val finchVersion = "0.16.0"
+lazy val sangriaVersion = "1.3.3"
+lazy val sangriaCirceVersion = "1.1.1"
+lazy val specsVersion = "4.0.2"
 lazy val slf4jVersion = "1.7.25"
 
 libraryDependencies ++= Seq(
