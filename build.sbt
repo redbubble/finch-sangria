@@ -1,12 +1,9 @@
+organization := "com.redbubble"
+
 lazy val buildSettings = Seq(
   name := "finch-sangria",
-  organization := "com.redbubble",
   scalaVersion := "2.12.4"
 )
-
-enablePlugins(GitVersioning, GitBranchPrompt)
-
-git.useGitDescribe := true
 
 bintrayOrganization := Some("redbubble")
 
