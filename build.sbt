@@ -5,6 +5,10 @@ lazy val buildSettings = Seq(
   scalaVersion := "2.12.4"
 )
 
+enablePlugins(GitVersioning, GitBranchPrompt)
+
+git.useGitDescribe := true
+
 bintrayOrganization := Some("redbubble")
 
 bintrayRepository := "open-source"
