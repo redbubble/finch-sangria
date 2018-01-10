@@ -46,26 +46,27 @@ resolvers ++= Seq(
   Resolver.jcenterRepo,
   Resolver.sonatypeRepo("releases"),
   Resolver.sonatypeRepo("snapshots"),
+  Resolver.bintrayRepo("redbubble", "open-source"),
   "Twitter" at "http://maven.twttr.com"
 )
 
-lazy val rbUtilsVersion = "0.2.9"
+lazy val rbUtilsVersion = "0.2.10"
 lazy val catsVersion = "1.0.1"
-lazy val mouseVersion = "0.9"
+lazy val mouseVersion = "0.16"
 lazy val circeVersion = "0.9.0"
 lazy val finchVersion = "0.16.0"
 lazy val sangriaVersion = "1.3.3"
-lazy val sangriaCirceVersion = "1.1.1"
+lazy val sangriaCirceVersion = "1.2.0"
 lazy val specsVersion = "4.0.2"
 lazy val slf4jVersion = "1.7.25"
 
 libraryDependencies ++= Seq(
   "com.redbubble" %% "rb-scala-utils" % rbUtilsVersion,
   "org.typelevel" %% "cats-core" % catsVersion,
+  "org.typelevel" %% "mouse" % mouseVersion,
   "io.circe" %% "circe-core" % circeVersion,
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser" % circeVersion,
-  "com.github.benhutchison" %% "mouse" % mouseVersion,
   "com.github.finagle" %% "finch-core" % finchVersion,
   "com.github.finagle" %% "finch-circe" % finchVersion,
   "org.sangria-graphql" %% "sangria" % sangriaVersion,
